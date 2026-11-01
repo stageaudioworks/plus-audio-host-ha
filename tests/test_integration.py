@@ -1,0 +1,83 @@
+import pytest
+from homeassistant import config_entries
+from homeassistant.const import CONF_URL
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.exceptions import HomeAssistantError
+
+from custom_components.plus_audio_host.const import CONF_TOKEN, DOMAIN
+
+
+async def _setup(hass: HomeAssistant, url: str, token: str):
+    r = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_URL: url, CONF_TOKEN: token})
+    await hass.async_block_till_done()
+    return r
+
+
+async def test_bad_token_refused(hass: HomeAssistant, box):
+    url, _, _ = box
+    r = await _setup(hass, url, "bmp_not_a_real_token")
+    assert r["type"] == FlowResultType.FORM and r["errors"] == {"base": "invalid_auth"}
+
+
+async def test_unreachable(hass: HomeAssistant):
+    r = await _setup(hass, "http://127.0.0.1:9", "bmp_x")
+    assert r["errors"] == {"base": "cannot_connect"}
+
+
+async def test_zones_scenes_announce(hass: HomeAssistant, box):
+    url, token, call = box
+    state = call("GET", "/api/state")[1]
+    r = await _setup(hass, url, token)
+    assert r["type"] == FlowResultType.CREATE_ENTRY, r
+    assert r["title"] == state["device_name"]
+    assert r["result"].unique_id == "HA-TEST-1"
+
+    zones = state["zones"]
+    players = hass.states.async_all("media_player")
+    assert len(players) == len(zones)
+    z1 = zones[0]
+    ent = next(p for p in players if p.attributes["friendly_name"].endswith(z1["name"]))
+    eid = ent.entity_id
+    assert ent.attributes["volume_db"] == z1["volume_db"]
+    assert "Music player" in ent.attributes["source_list"] and "Off" in ent.attributes["source_list"]
+    assert "Announcements" not in ent.attributes["source_list"]
+
+    # volume: 0..1 is -60 dB .. the zone's limit (0 dB here)
+    await hass.services.async_call("media_player", "volume_set", {"entity_id": eid, "volume_level": 0.5}, blocking=True)
+    assert call("GET", "/api/state")[1]["zones"][0]["volume_db"] == pytest.approx(-30.0, abs=0.2)
+    await hass.services.async_call("media_player", "volume_mute", {"entity_id": eid, "is_volume_muted": True}, blocking=True)
+    assert call("GET", "/api/state")[1]["zones"][0]["mute"] is True
+    await hass.services.async_call("media_player", "select_source", {"entity_id": eid, "source": "Music player"}, blocking=True)
+    assert call("GET", "/api/state")[1]["zones"][0]["source"] == "player"
+    await hass.services.async_call("media_player", "select_source", {"entity_id": eid, "source": "Off"}, blocking=True)
+    await hass.async_block_till_done()
+    assert call("GET", "/api/state")[1]["zones"][0]["source"] == "none"
+    assert hass.states.get(eid).state == "off"
+
+    # with a lower limit, 100 % is the limit: Home Assistant can't make it louder than staff can
+    call("PUT", "/api/zones/1", {"max_volume_db": -20})
+    await hass.data[DOMAIN][r["result"].entry_id].async_refresh()
+    await hass.services.async_call("media_player", "volume_set", {"entity_id": eid, "volume_level": 1.0}, blocking=True)
+    assert call("GET", "/api/state")[1]["zones"][0]["volume_db"] == pytest.approx(-20.0, abs=0.2)
+
+    # scenes
+    sel = hass.states.async_all("select")[0]
+    assert sel.attributes["options"] == ["Lunch", "Dinner"]
+    await hass.services.async_call("select", "select_option", {"entity_id": sel.entity_id, "option": "Dinner"}, blocking=True)
+    sc = call("GET", "/api/scenes")[1]
+    assert next(s["name"] for s in sc["scenes"] if s["id"] == sc["day"]["last"]["id"]) == "Dinner"
+
+    # announcements: text to zones by name and letter; unknown zones and messages are refused
+    await hass.services.async_call(DOMAIN, "announce", {"text": "Kitchen closes soon", "zones": [z1["name"], "B"]}, blocking=True)
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(DOMAIN, "announce", {"text": "x", "zones": ["Nowhere"]}, blocking=True)
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(DOMAIN, "announce", {"message": "No such message"}, blocking=True)
+    audit = call("GET", "/api/audit")[1]
+    assert any("Home Assistant" in str(a) for a in (audit.get("entries") or audit.get("audit") or [])), audit
+
+    # health sensors
+    names = {s.attributes.get("friendly_name", "") for s in hass.states.async_all("sensor")}
+    assert any(n.endswith("Audio dropouts") for n in names) and any(n.endswith("Network clock") for n in names)

@@ -1,0 +1,24 @@
+announce:
+  fields:
+    message:
+      example: "Closing in 15 minutes"
+      selector:
+        text:
+    text:
+      example: "The kitchen closes in 15 minutes."
+      selector:
+        text:
+          multiline: true
+    zones:
+      example: "Bar, Patio"
+      selector:
+        text:
+          multiple: true
+    chime:
+      selector:
+        boolean:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: plus_audio_host
+stop_announcements:

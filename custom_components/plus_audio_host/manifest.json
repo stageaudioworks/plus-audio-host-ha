@@ -1,0 +1,11 @@
+{
+  "domain": "plus_audio_host",
+  "name": "Plus Audio Host",
+  "codeowners": ["@stageaudioworks"],
+  "config_flow": true,
+  "documentation": "https://github.com/stageaudioworks/plus-audio-bmp/tree/main/integrations/homeassistant",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}
