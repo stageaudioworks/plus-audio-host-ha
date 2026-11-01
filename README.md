@@ -14,8 +14,9 @@ network (no cloud), every 5 seconds.
 
 ## Install
 
-1. HACS → Custom repositories → `https://github.com/stageaudioworks/plus-audio-bmp`, type Integration (or copy
-   `custom_components/plus_audio_host` into Home Assistant's `config/custom_components/`). Restart.
+1. Copy `custom_components/plus_audio_host` into Home Assistant's `config/custom_components/` and restart. (HACS needs
+   the integration at the root of its own repository; when it's published, this folder moves to e.g.
+   `stageaudioworks/plus-audio-host-ha` with `hacs.json` beside it.)
 2. On the processor: Settings → Access tokens → new token, scope **staff** (installer works too, but isn't needed).
 3. Settings → Devices & services → Add integration → Plus Audio Host: the processor's address (e.g.
    `http://192.168.1.50`) and the token.
