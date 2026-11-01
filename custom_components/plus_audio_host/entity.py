@@ -15,7 +15,7 @@ class HostEntity(CoordinatorEntity[HostCoordinator]):
         self._serial = coord.config_entry.unique_id or coord.config_entry.entry_id
         self._attr_unique_id = f"{self._serial}_{key}"
         dev = (coord.data.get("status") or {}).get("device") or {}
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._serial)}, manufacturer="Plus Audio (Stage Audio Works)",
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._serial)}, manufacturer="Plus Audio",
                                             model=f"Plus Audio {dev.get('model') or 'Host'}", sw_version=dev.get("version"),
                                             serial_number=dev.get("serial"), name=coord.data["state"].get("device_name") or "Plus Audio Host",
                                             configuration_url=coord.client.url)
