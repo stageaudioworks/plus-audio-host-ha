@@ -62,6 +62,27 @@ async def test_zones_scenes_announce(hass: HomeAssistant, box):
     await hass.services.async_call("media_player", "volume_set", {"entity_id": eid, "volume_level": 1.0}, blocking=True)
     assert call("GET", "/api/state")[1]["zones"][0]["volume_db"] == pytest.approx(-20.0, abs=0.2)
 
+    # zone groups (#81): a player per group, made on the next update; its level and mute go to the box
+    call("PUT", "/api/zones/1", {"max_volume_db": 0, "volume_db": -20, "mute": False})
+    g = call("POST", "/api/groups", {"name": "Front", "zones": [1, 2]})[1]["group"]
+    await hass.data[DOMAIN][r["result"].entry_id].async_refresh()
+    await hass.async_block_till_done()
+    gp = next(p for p in hass.states.async_all("media_player") if p.attributes["friendly_name"].endswith("Front (group)"))
+    assert gp.attributes["zones"] == [zones[0]["name"], zones[1]["name"]] and gp.attributes["volume_level"] == pytest.approx(0.8)
+    await hass.services.async_call("media_player", "volume_set", {"entity_id": gp.entity_id, "volume_level": 0.68}, blocking=True)
+    st = call("GET", "/api/state")[1]
+    assert st["groups"][0]["offset_db"] == pytest.approx(-6.0) and st["zones"][0]["volume_db"] == -20
+    assert hass.states.get(eid).attributes["plays_at_db"] == pytest.approx(-26.0)
+    await hass.services.async_call("media_player", "volume_mute", {"entity_id": gp.entity_id, "is_volume_muted": True}, blocking=True)
+    assert call("GET", "/api/state")[1]["groups"][0]["mute"] is True
+    await hass.data[DOMAIN][r["result"].entry_id].async_refresh()      # (the refresh after a change is debounced)
+    await hass.async_block_till_done()
+    assert hass.states.get(eid).attributes["muted_by_group"] is True and call("GET", "/api/state")[1]["zones"][0]["mute"] is False
+    call("DELETE", f"/api/groups/{g['id']}", {})
+    await hass.data[DOMAIN][r["result"].entry_id].async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(gp.entity_id).state == "unavailable"
+
     # scenes
     sel = hass.states.async_all("select")[0]
     assert sel.attributes["options"] == ["Lunch", "Dinner"]

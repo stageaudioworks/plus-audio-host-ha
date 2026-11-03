@@ -64,6 +64,9 @@ class HostClient:
     async def set_zone(self, zone: int, **fields: Any) -> None:
         await self._req("PUT", f"/api/zones/{int(zone)}", fields)
 
+    async def set_group(self, group_id: str, **fields: Any) -> None:
+        await self._req("PUT", f"/api/groups/{group_id}", fields)
+
     async def run_scene(self, scene_id: str) -> None:
         await self._req("POST", f"/api/scenes/{scene_id}/run", {})
 
