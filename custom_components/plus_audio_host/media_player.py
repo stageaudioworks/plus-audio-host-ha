@@ -66,7 +66,7 @@ class ZonePlayer(HostEntity, MediaPlayerEntity):
 
     @property
     def available(self) -> bool:
-        return super().available and bool(self._z)
+        return super().available and bool(self._z) and self._z.get("in_use", True) is not False   # an installer took it out of use
 
     @property
     def state(self) -> MediaPlayerState:
