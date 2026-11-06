@@ -9,6 +9,10 @@ network (no cloud), every 5 seconds.
   can't make a zone louder than staff could.
 - **Scene** (select): shows the scene that ran last; choosing one runs it.
 - **Diagnostics:** audio dropouts (engine xruns), network clock (PTP) state, network inputs with problems.
+- **Per amplifier the processor controls** (Plus Audio AC403 / AC401): a power switch (on / standby), its temperature,
+  and a problem sensor (not answering, protection, too hot, a short or a missing speaker on an output in use, a load
+  far from its saved normal; the texts are in its `problems` attribute). Amplifiers added on the processor appear on
+  the next update. The processor refuses standby during the fire alarm, and announcements wake an amplifier by themselves.
 - **Actions:** `plus_audio_host.announce` (a saved message by name, or text the box speaks, to zones by name or letter)
   and `plus_audio_host.stop_announcements`.
 

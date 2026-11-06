@@ -1,4 +1,5 @@
-"""Plus Audio Host: zones as media players, scenes, announcements, engine health (local API, no cloud)."""
+"""Plus Audio Host: zones as media players, scenes, announcements, engine health, and the amplifiers it controls
+(Plus Audio AC403 / AC401: a power switch, temperature and a problem sensor each). Local API, no cloud."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -14,7 +15,7 @@ from .api import HostClient, HostError
 from .const import CONF_TOKEN, CONF_VERIFY_SSL, DOMAIN
 from .coordinator import HostCoordinator
 
-PLATFORMS = [Platform.MEDIA_PLAYER, Platform.SELECT, Platform.SENSOR]
+PLATFORMS = [Platform.MEDIA_PLAYER, Platform.SELECT, Platform.SENSOR, Platform.SWITCH, Platform.BINARY_SENSOR]
 
 ANNOUNCE_SCHEMA = vol.Schema({
     vol.Optional("config_entry_id"): cv.string,

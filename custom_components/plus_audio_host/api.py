@@ -64,6 +64,12 @@ class HostClient:
     async def set_zone(self, zone: int, **fields: Any) -> None:
         await self._req("PUT", f"/api/zones/{int(zone)}", fields)
 
+    async def amps(self) -> dict:
+        return await self._req("GET", "/api/amps")
+
+    async def amp_power(self, amp_id: str, standby: bool) -> None:
+        await self._req("POST", f"/api/amps/{amp_id}/power", {"standby": bool(standby)})
+
     async def set_group(self, group_id: str, **fields: Any) -> None:
         await self._req("PUT", f"/api/groups/{group_id}", fields)
 

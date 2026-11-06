@@ -1,4 +1,4 @@
-"""Health: audio dropouts (engine xruns), the network clock (PTP), network inputs with problems."""
+"""Health: audio dropouts (engine xruns), the network clock (PTP), network inputs with problems; each amplifier's temperature."""
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
@@ -7,6 +7,10 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import UnitOfTemperature
+
+from .amp import AmpEntity, follow_amps
 from .const import DOMAIN
 from .coordinator import HostCoordinator
 from .entity import HostEntity
@@ -15,6 +19,29 @@ from .entity import HostEntity
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add: AddEntitiesCallback) -> None:
     c = hass.data[DOMAIN][entry.entry_id]
     add([Dropouts(c), Clock(c), InputProblems(c)])
+    follow_amps(c, entry, add, AmpTemperature)
+
+
+class AmpTemperature(AmpEntity, SensorEntity):
+    """an amplifier's own temperature (it alerts on the box at the amplifier's alert setting, 80 °C by default)"""
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, c: HostCoordinator, aid: str) -> None:
+        super().__init__(c, aid, "temperature")
+
+    @property
+    def name(self) -> str:
+        return f"{self._a.get('name') or 'Amplifier'} temperature"
+
+    @property
+    def available(self) -> bool:
+        return super().available and bool(self._s.get("online")) and self._s.get("temp_c") is not None
+
+    @property
+    def native_value(self):
+        return self._s.get("temp_c")
 
 
 class _Diag(HostEntity, SensorEntity):

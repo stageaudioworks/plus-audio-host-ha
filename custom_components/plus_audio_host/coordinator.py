@@ -30,11 +30,12 @@ class HostCoordinator(DataUpdateCoordinator[dict]):
             if time.monotonic() - self._slow_t > 60 or not self._slow:
                 self._slow = {"scenes": await self.client.scenes(), "messages": await self.client.messages()}
                 self._slow_t = time.monotonic()
+            amps = (await self.client.amps()).get("amps", []) if state.get("amps") else []   # boxes from before: none
         except HostAuthError as e:
             raise ConfigEntryAuthFailed(str(e)) from e
         except HostError as e:
             raise UpdateFailed(str(e)) from e
-        return {"state": state, "status": status, **self._slow}
+        return {"state": state, "status": status, "amps": amps, **self._slow}
 
     def refresh_slow(self) -> None:
         self._slow_t = 0.0

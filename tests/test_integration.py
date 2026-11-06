@@ -102,3 +102,53 @@ async def test_zones_scenes_announce(hass: HomeAssistant, box):
     # health sensors
     names = {s.attributes.get("friendly_name", "") for s in hass.states.async_all("sensor")}
     assert any(n.endswith("Audio dropouts") for n in names) and any(n.endswith("Network clock") for n in names)
+
+
+async def test_amplifiers(hass: HomeAssistant, box):
+    """an amplifier on the box (the PN43R simulator) appears as a power switch, a temperature and a problem sensor;
+    the switch puts it into standby and back"""
+    import asyncio
+    import os
+    import subprocess
+    import sys
+    import harness
+    sim_port = harness.free_port()                # in its own process: the test plugin doesn't allow leftover threads
+    sim = subprocess.Popen([sys.executable, os.path.join(harness.CTL_DIR, "test", "amp_sim.py"), "--port", str(sim_port), "--host", "127.0.0.1"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    await asyncio.sleep(0.5)
+    url, token, call = box
+    st, j = call("POST", "/api/amps", {"name": "Bar amp", "host": "127.0.0.1", "port": sim_port, "outputs": [{"zone": 1}, {"zone": 1}]})
+    assert st == 200, j
+    aid = j["amp"]["id"]
+    try:
+        for _ in range(60):                       # the box connects and reads it
+            a = call("GET", "/api/amps")[1]["amps"][0]
+            if a["status"]["online"] and a["status"]["temp_c"] is not None and a["status"]["standby"] is not None:
+                break
+            await asyncio.sleep(0.25)
+        r = await _setup(hass, url, token)
+        assert r["type"] == FlowResultType.CREATE_ENTRY, r
+        sw = next(s for s in hass.states.async_all("switch") if s.attributes["friendly_name"].endswith("Bar amp power"))
+        assert sw.state == "on"
+        t = next(s for s in hass.states.async_all("sensor") if s.attributes["friendly_name"].endswith("Bar amp temperature"))
+        assert float(t.state) == pytest.approx(41.5)
+        pb = next(s for s in hass.states.async_all("binary_sensor") if s.attributes["friendly_name"].endswith("Bar amp problem"))
+        assert pb.state == "off"
+        async def standby_is(want):
+            for _ in range(40):
+                if call("GET", "/api/amps")[1]["amps"][0]["status"]["standby"] is want:
+                    return True
+                await asyncio.sleep(0.2)
+            return False
+        for _ in range(150):                      # an announcement from the test before holds standby until it ends (by design)
+            ann = call("GET", "/api/messages")[1]["status"]
+            if not ann["now"] and not ann["queue"]:
+                break
+            await asyncio.sleep(0.2)
+        await hass.services.async_call("switch", "turn_off", {"entity_id": sw.entity_id}, blocking=True)
+        assert await standby_is(True), call("GET", "/api/amps")[1]["log"]   # the box read it back from the amplifier
+        await hass.services.async_call("switch", "turn_on", {"entity_id": sw.entity_id}, blocking=True)
+        assert await standby_is(False)
+    finally:
+        call("DELETE", f"/api/amps/{aid}", {})
+        sim.terminate()
