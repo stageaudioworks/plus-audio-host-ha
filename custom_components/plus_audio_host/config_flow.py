@@ -74,3 +74,25 @@ class HostConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 return self.async_update_reload_and_abort(entry, data=data)
         return self.async_show_form(step_id="reauth_confirm", data_schema=vol.Schema({vol.Required(CONF_TOKEN): str}), errors=errors)
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        """a new address (the processor moved, or a DHCP lease changed), token or HTTPS setting for the same processor"""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                info = await _check(self.hass, user_input)
+            except HostAuthError:
+                errors["base"] = "invalid_auth"
+            except HostError:
+                errors["base"] = "cannot_connect"
+            except (KeyError, IndexError, TypeError):
+                errors["base"] = "not_a_host"
+            else:
+                if info["serial"] != entry.unique_id:
+                    errors["base"] = "other_host"
+                else:
+                    return self.async_update_reload_and_abort(entry, data={
+                        CONF_URL: info["url"], CONF_TOKEN: user_input[CONF_TOKEN].strip(),
+                        CONF_VERIFY_SSL: user_input.get(CONF_VERIFY_SSL, False)})
+        return self.async_show_form(step_id="reconfigure", data_schema=_schema(user_input or dict(entry.data)), errors=errors)

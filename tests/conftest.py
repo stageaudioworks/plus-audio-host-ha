@@ -12,8 +12,12 @@ import time
 import pytest
 
 HERE = os.path.dirname(__file__)
-ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+# the processor software (stageaudioworks/plus-audio-bmp): BMP_ROOT, or the checkout this folder sits in as a submodule
+ROOT = os.environ.get("BMP_ROOT") or os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(HERE, ".."))
+if not os.path.isfile(os.path.join(ROOT, "control", "bmp-control.py")):
+    pytest.skip("set BMP_ROOT to a checkout of the processor software (plus-audio-bmp) to run these tests",
+                allow_module_level=True)
 sys.path.insert(0, os.path.join(ROOT, "control", "test"))
 import harness  # noqa: E402
 

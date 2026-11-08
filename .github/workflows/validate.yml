@@ -1,0 +1,56 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"          # weekly: catches Home Assistant or HACS rule changes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # the brands check passes once the icon is in home-assistant/brands (see CONTRIBUTING.md)
+          ignore: brands
+
+  tests:
+    # Home Assistant against the processor's real control software. Needs read access to the private processor
+    # repository: a fine-grained token with Contents: read on stageaudioworks/plus-audio-bmp, as the secret BMP_REPO_TOKEN.
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.BMP_REPO_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Processor software
+        if: env.HAS_TOKEN == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: stageaudioworks/plus-audio-bmp
+          token: ${{ secrets.BMP_REPO_TOKEN }}
+          path: bmp
+          sparse-checkout: control
+      - uses: actions/setup-python@v5
+        if: env.HAS_TOKEN == 'true'
+        with:
+          python-version: "3.13"
+      - name: Tests
+        if: env.HAS_TOKEN == 'true'
+        run: |
+          pip install pytest-homeassistant-custom-component
+          BMP_ROOT=$GITHUB_WORKSPACE/bmp pytest tests -v
+      - name: Skipped
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::notice::Tests skipped - add the BMP_REPO_TOKEN secret to run them"

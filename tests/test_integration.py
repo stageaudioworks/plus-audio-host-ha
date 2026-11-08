@@ -152,3 +152,21 @@ async def test_amplifiers(hass: HomeAssistant, box):
     finally:
         call("DELETE", f"/api/amps/{aid}", {})
         sim.terminate()
+
+
+async def test_reconfigure(hass: HomeAssistant, box):
+    """the processor got a new address (a DHCP lease changed): Reconfigure points the entry at it; a wrong token is refused"""
+    url, token, _ = box
+    r = await _setup(hass, url, token)
+    assert r["type"] == FlowResultType.CREATE_ENTRY
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_URL: "http://127.0.0.1:9"})   # the old address
+    start = lambda: hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_RECONFIGURE, "entry_id": entry.entry_id})
+    r = await start()
+    assert r["type"] == FlowResultType.FORM and r["step_id"] == "reconfigure"
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_URL: url, CONF_TOKEN: "bmp_wrong"})
+    assert r["errors"] == {"base": "invalid_auth"}
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_URL: url, CONF_TOKEN: token})
+    await hass.async_block_till_done()
+    assert r["type"] == FlowResultType.ABORT and r["reason"] == "reconfigure_successful"
+    assert entry.data[CONF_URL] == url
