@@ -164,5 +164,5 @@ async def test_card_served(hass: HomeAssistant, hass_client, js_urls):
     await _setup_frontend(hass)                     # a second processor: set up once only
     r = await (await hass_client()).get("/plus_audio_host/plus-audio-meters-card.js")
     assert r.status == 200 and "plus-audio-meters-card" in await r.text()
-    assert js_urls == ["/plus_audio_host/plus-audio-meters-card.js?v=0.3.0"]           # loaded on every dashboard
+    assert js_urls == ["/plus_audio_host/plus-audio-meters-card.js?v=0.3.1"]           # loaded on every dashboard
 

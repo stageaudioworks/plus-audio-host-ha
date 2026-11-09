@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.1 (unreleased)
+
+- The meters card is now a meter bridge, like a console's or Q-SYS's: vertical segmented meters with a dB scale,
+  peak hold, a clip light and a steady dB readout. RMS ballistics by default (about 300 ms); `ballistics: ppm` or
+  `fast` for quicker meters. New options: `ballistics`, `peak_hold`, `height`, `show_values`.
+
+## 0.3.0 (9 Nov 2026)
 
 - Live meters: a dashboard card, **Plus Audio meters** (`custom:plus-audio-meters-card`), with each zone's left and
   right level up to 20 times a second and peak hold. The integration serves and loads it; no dashboard resource.
