@@ -20,7 +20,7 @@ For each processor, one device in Home Assistant with:
 | **Audio dropouts**, **Network clock**, **Network inputs with problems** | Diagnostics: engine dropouts, the PTP clock state and AES67 inputs that aren't arriving. |
 | **Per amplifier** (Plus Audio AC403 / AC401) | A power switch (on / standby), its temperature, and a problem sensor (not answering, protection, too hot, a short or missing speaker, a load far from normal; the details are in its `problems` attribute). |
 
-And two actions:
+And a dashboard card for live levels (below), plus two actions:
 
 - `plus_audio_host.announce`: play a saved message by name, or have the processor speak some text, in chosen zones.
 - `plus_audio_host.stop_announcements`: stop what's playing and clear the queue.
@@ -157,6 +157,38 @@ Zones are ordinary media players, so they work on dashboards, with voice assista
 | `chime` | Play the chime first (default: the processor's own setting). |
 | `config_entry_id` | Which processor, when you have more than one (default: all of them). |
 
+## Live meters
+
+The integration brings its own dashboard card, **Plus Audio meters**: each zone's left and right level, updated up to
+20 times a second, with peak hold. Edit a dashboard → **Add card** → search for "Plus Audio", or in YAML:
+
+```yaml
+type: custom:plus-audio-meters-card
+title: Levels          # optional
+zones: [A, B, Bar]     # optional: letters or numbers; default every zone in use
+rate: 15               # optional: updates a second, 1 to 20 (default 15)
+entry_id: …            # optional: one processor, when you have more than one (default all)
+show_rms: true         # optional: the average level inside the bar, when the processor sends it
+```
+
+Nothing to add under dashboard resources: the integration serves the card and loads it. The levels go from the
+processor to Home Assistant and on to the open dashboard over Home Assistant's own connection; the browser never
+talks to the processor or sees its token, and nothing is stored in Home Assistant's history. While no dashboard with
+the card is open, nothing is fetched.
+
+How live it is depends on the processor's software. The card's top right says which:
+
+| Card says | Means |
+|---|---|
+| **live** | The processor pushes its levels (`/api/meters/ws`). |
+| **live (polled)** | Home Assistant asks the processor for just the levels (`/api/meters`), at the card's rate. |
+| **polled, may lag** | Older processor software: the levels come from its full status, which it may only refresh every few seconds. |
+
+[METERS.md](METERS.md) describes the two newer endpoints for the processor's developers.
+
+Zones no longer have a `level_db` attribute (it filled Home Assistant's history with a value every few seconds). Use
+the card instead.
+
 ## Good to know
 
 - **Limits are the processor's.** Volume can't go over a zone's staff limit, a zone only offers its allowed sources,
@@ -210,7 +242,12 @@ pip install pytest-homeassistant-custom-component
 BMP_ROOT=/path/to/plus-audio-bmp pytest tests
 ```
 
-Without `BMP_ROOT` the tests are skipped. GitHub Actions also runs Home Assistant's `hassfest` and the HACS checks on
+Without `BMP_ROOT` those tests are skipped. The live meters' tests use a small fake processor and run anywhere:
+
+```sh
+pytest tests_meters
+```
+ GitHub Actions also runs Home Assistant's `hassfest` and the HACS checks on
 every push.
 
 ## Licence

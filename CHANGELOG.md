@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+- Live meters: a dashboard card, **Plus Audio meters** (`custom:plus-audio-meters-card`), with each zone's left and
+  right level up to 20 times a second and peak hold. The integration serves and loads it; no dashboard resource.
+  Levels reach the dashboard over Home Assistant's own websocket (`plus_audio_host/meters/subscribe`), only while a
+  card is open, and are never stored.
+- The processor can push the levels (`/api/meters/ws`) or offer them on their own (`/api/meters`); see METERS.md.
+  Older processors work too, more slowly, from `/api/status`.
+- **Removed:** the zones' `level_db` attribute. It wrote a value to the history every few seconds; use the card.
+
 ## 0.2.0 (9 Nov 2026)
 
 - Own repository (stageaudioworks/plus-audio-host-ha), MIT licence, setup guide.
