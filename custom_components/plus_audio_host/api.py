@@ -60,6 +60,14 @@ class HostClient:
     async def messages(self) -> dict:
         return await self._req("GET", "/api/messages")
 
+    async def radio(self) -> dict:
+        """the internet radio: favourite stations (what staff may play), the station playing"""
+        return await self._req("GET", "/api/radio")
+
+    async def channels(self) -> dict:
+        """the music player's channels (Jamendo) and the one playing"""
+        return await self._req("GET", "/api/jamendo")
+
     # changes
     async def set_zone(self, zone: int, **fields: Any) -> None:
         await self._req("PUT", f"/api/zones/{int(zone)}", fields)
@@ -85,6 +93,26 @@ class HostClient:
         if chime is not None:
             body["chime"] = chime
         await self._req("POST", "/api/announce", body)
+
+    # the music player and the radio are one each per processor, shared by every zone that plays them
+    async def player(self, cmd: str) -> None:
+        """play | pause | next | prev"""
+        await self._req("POST", "/api/player", {"cmd": cmd})
+
+    async def play_channel(self, channel: str) -> None:
+        """a channel id, or "local" for the music stored on the processor"""
+        await self._req("POST", "/api/jamendo", {"channel": channel})
+
+    async def play_station(self, station: str, zone: int | None = None) -> None:
+        """a favourite station; with zone, that zone switches to the radio too"""
+        body: dict[str, Any] = {"station": station}
+        if zone is not None:
+            body["zone"] = int(zone)
+        await self._req("POST", "/api/radio", body)
+
+    async def radio_cmd(self, cmd: str) -> None:
+        """pause | play"""
+        await self._req("POST", "/api/radio", {"cmd": cmd})
 
     async def stop_announcements(self) -> None:
         await self._req("POST", "/api/announce/stop", {})

@@ -20,6 +20,7 @@ if not os.path.isfile(os.path.join(ROOT, "control", "bmp-control.py")):
                 allow_module_level=True)
 sys.path.insert(0, os.path.join(ROOT, "control", "test"))
 import harness  # noqa: E402
+import tunein_mock  # noqa: E402  (a TuneIn directory on 127.0.0.1 and a fake mpc on PATH, for the radio and music player)
 
 pytest_plugins = "pytest_homeassistant_custom_component"
 PIN = "135790"
@@ -35,7 +36,7 @@ def _start_box():
            "BMP_MSG_DIR": f"{d}/msgs", "BMP_PLAYLOG": f"{d}/playlog.csv", "BMP_SPEAKER_DIR": f"{d}/speakers",
            "BMP_SECRETS": f"{d}/secrets.json", "BMP_ALERT_LOG": f"{d}/alerts.jsonl", "BMP_AUDIT_LOG": f"{d}/audit.jsonl",
            "BMP_CLOUD_CONF": f"{d}/cloud.json", "BMP_SERIAL": "HA-TEST-1", "BMP_NET_DROPIN": f"{d}/net.conf",
-           "BMP_SOLOIST": f"{d}/no-soloist", "PATH": f"{harness.MOCK_DIR}/bin:" + os.environ["PATH"]}
+           "BMP_SOLOIST": f"{d}/no-soloist", **tunein_mock.ENV, "PATH": f"{harness.MOCK_DIR}/bin:" + os.environ["PATH"]}
     p = subprocess.Popen([sys.executable, os.path.join(ROOT, "control", "bmp-control.py")], env=env, cwd=d,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     for _ in range(60):

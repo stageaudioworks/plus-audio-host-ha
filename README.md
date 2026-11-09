@@ -12,9 +12,11 @@ For each processor, one device in Home Assistant with:
 
 | Entity | What it does |
 |---|---|
-| **A media player per zone** | Source (the zone's allowed sources, plus Off), volume, mute, and what's playing on the music player or radio. Home Assistant's 0–100 % volume maps to −60 dB … the zone's staff limit, so an automation can never make a zone louder than staff could. A zone the installer took out of use shows as unavailable. |
+| **A media player per zone** | Source (the zone's allowed sources, plus Off), volume, mute, and what's playing on the music player or radio: artist, title, the album cover or station logo. Play, pause and skip while the zone plays the music player (play and pause on the radio), and a media browser with the favourite radio stations and the music channels. Home Assistant's 0–100 % volume maps to −60 dB … the zone's staff limit, so an automation can never make a zone louder than staff could. A zone the installer took out of use shows as unavailable. |
 | **A media player per zone group** | The group's level (−40 … +10 dB) and mute. Groups made later on the processor appear by themselves. |
 | **Scene** (select) | Shows the scene that ran last; choosing one runs it. |
+| **Radio station** (select) | The internet radio's station, from the processor's favourites. |
+| **Music player channel** (select) | The music player's channel: the processor's own music, or a Jamendo channel when Jamendo is set up on the processor. |
 | **Audio dropouts**, **Network clock**, **Network inputs with problems** | Diagnostics: engine dropouts, the PTP clock state and AES67 inputs that aren't arriving. |
 | **Per amplifier** (Plus Audio AC403 / AC401) | A power switch (on / standby), its temperature, and a problem sensor (not answering, protection, too hot, a short or missing speaker, a load far from normal; the details are in its `problems` attribute). |
 
@@ -115,6 +117,23 @@ Zones are ordinary media players, so they work on dashboards, with voice assista
       data:
         source: "{{ 'Music player' if trigger.to_state.state == 'on' else 'Off' }}"
 
+# the bar on the radio at 17:00 (Jacaranda FM must be one of the processor's favourite stations)
+- alias: Bar radio after work
+  triggers:
+    - trigger: time
+      at: "17:00:00"
+  actions:
+    - action: media_player.select_source
+      target:
+        entity_id: media_player.the_grill_house_bar
+      data:
+        source: Internet radio
+    - action: select.select_option
+      target:
+        entity_id: select.the_grill_house_radio_station
+      data:
+        option: Jacaranda FM
+
 # run the "Evening" scene at sunset
 - alias: Evening music
   triggers:
@@ -144,6 +163,11 @@ Zones are ordinary media players, so they work on dashboards, with voice assista
   and the processor refuses amplifier standby during a fire alarm. Home Assistant shows the refusal as an error.
 - **Announcements and the fire alarm win.** While a zone is paging or the fire alarm is on, the processor keeps the
   zone the way the alarm or announcement needs it, whatever Home Assistant asks.
+- **One music player and one radio per processor.** Every zone on the music player hears the same music, and every
+  zone on the radio the same station. Skipping a song, pausing or changing the station from any zone (or the
+  selects) changes it for all of them, just as on the processor's panels.
+- **Stations:** Home Assistant can play the processor's favourite stations (an installer adds them on the processor
+  under Music → Internet radio). Searching TuneIn for other stations stays with the installer.
 - **Amplifiers** wake by themselves for announcements; you don't need to switch them on first.
 - **Revoking the token** on the processor cuts Home Assistant off straight away. Home Assistant then asks for a new
   one (a notice under **Settings → Devices & services**); make a new token and paste it there.

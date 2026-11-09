@@ -1,9 +1,15 @@
-"""One media player per zone: source, volume (dB mapped to 0..1 up to the zone's limit), mute, what's playing.
+"""One media player per zone: source, volume (dB mapped to 0..1 up to the zone's limit), mute, what's playing with its
+artwork, play/pause/skip while it plays the music player or the radio, and a media browser for the favourite stations
+and the music channels. The music player and the radio are one each per processor: skipping or changing the station
+from one zone changes it for every zone playing it (as on the processor's own panels).
 One more per zone group (#81): the group's level (-40..+10 dB mapped to 0..1) and mute. Groups made later appear on the
 next update; a deleted group's player goes unavailable. Boxes from before groups have none."""
 from __future__ import annotations
 
-from homeassistant.components.media_player import MediaPlayerEntity, MediaPlayerEntityFeature, MediaPlayerState
+import re
+
+from homeassistant.components.media_player import (BrowseError, BrowseMedia, MediaClass, MediaPlayerEntity,
+                                                   MediaPlayerEntityFeature, MediaPlayerState, MediaType)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -15,6 +21,42 @@ from .coordinator import HostCoordinator
 from .entity import HostEntity
 
 OFF = "Off"
+LOCAL = "Processor's own music"   # the music stored on the processor (its UI: "Box's own music")
+F = MediaPlayerEntityFeature
+BASE = F.VOLUME_SET | F.VOLUME_MUTE | F.VOLUME_STEP | F.SELECT_SOURCE
+PLAYING = {"playing": MediaPlayerState.PLAYING, "backup": MediaPlayerState.PLAYING, "paused": MediaPlayerState.PAUSED,
+           "stopped": MediaPlayerState.IDLE}
+
+
+def split_track(text: str) -> tuple[str | None, str | None]:
+    """"Artist – Title" (Jamendo), "Artist - Title" (mpd, a station's ICY title) -> (artist, title). A file on the
+    processor without tags shows as its path: its name without the folder and extension, often "Artist - Title" too."""
+    base = text.rsplit("/", 1)[-1]
+    if base != text or re.search(r"\.(mp3|flac|ogg|oga|opus|m4a|aac|wav|aiff?|wma)$", base, re.I):
+        text = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", base)
+    for sep in (" – ", " - "):
+        if sep in text:
+            a, t = text.split(sep, 1)
+            if a.strip().isdigit():                  # "06 - Title": a track number, not an artist
+                return split_track(t) if t.strip() else (None, a.strip())
+            if a.strip() and t.strip():
+                return a.strip(), t.strip()
+    return None, (text.strip() or None)
+
+
+def favourites(data: dict) -> list[dict]:
+    return ((data.get("radio") or {}).get("favourites")) or []
+
+
+def channels(data: dict) -> list[tuple[str, str]]:
+    """(id, name): the music stored on the processor, then the Jamendo channels when Jamendo is set up"""
+    ch = data.get("channels")
+    if ch is None:
+        return []
+    out = [("local", LOCAL)]
+    if ch.get("configured"):
+        out += [(c["id"], c["name"]) for c in ch.get("channels") or []]
+    return out
 
 
 def db_to_level(db: float, top: float) -> float:
@@ -43,8 +85,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add: AddEnt
 
 
 class ZonePlayer(HostEntity, MediaPlayerEntity):
-    _attr_supported_features = (MediaPlayerEntityFeature.VOLUME_SET | MediaPlayerEntityFeature.VOLUME_MUTE
-                                | MediaPlayerEntityFeature.VOLUME_STEP | MediaPlayerEntityFeature.SELECT_SOURCE)
     _attr_volume_step = 0.05
 
     def __init__(self, coord: HostCoordinator, zone: int) -> None:
@@ -69,8 +109,34 @@ class ZonePlayer(HostEntity, MediaPlayerEntity):
         return super().available and bool(self._z) and self._z.get("in_use", True) is not False   # an installer took it out of use
 
     @property
+    def _src(self) -> str | None:
+        return self._z.get("source")
+
+    @property
+    def _np(self) -> dict:
+        """what the zone's source is playing: the music player's or the radio's status, else {}"""
+        st = self.coordinator.data.get("status") or {}
+        return (st.get(self._src) or {}) if self._src in ("player", "radio") else {}
+
+    @property
     def state(self) -> MediaPlayerState:
-        return MediaPlayerState.OFF if self._z.get("source") in (None, "none") else MediaPlayerState.ON
+        if self._src in (None, "none"):
+            return MediaPlayerState.OFF
+        if self._src in ("player", "radio"):
+            return PLAYING.get(self._np.get("state"), MediaPlayerState.ON)
+        return MediaPlayerState.ON
+
+    @property
+    def supported_features(self) -> MediaPlayerEntityFeature:
+        f = BASE
+        allowed = self._sources()
+        if ("radio" in allowed and favourites(self.coordinator.data)) or ("player" in allowed and channels(self.coordinator.data)):
+            f |= F.BROWSE_MEDIA | F.PLAY_MEDIA
+        if self._src == "player":
+            f |= F.PLAY | F.PAUSE | F.NEXT_TRACK | F.PREVIOUS_TRACK
+        elif self._src == "radio":
+            f |= F.PLAY | F.PAUSE
+        return f
 
     @property
     def volume_level(self) -> float:
@@ -97,15 +163,41 @@ class ZonePlayer(HostEntity, MediaPlayerEntity):
             return OFF
         return self.coordinator.data["state"].get("sources", {}).get(sid, {}).get("name", sid)
 
+    def _track(self) -> tuple[str | None, str | None]:
+        np = self._np
+        if self._src == "player":
+            return split_track(np.get("title") or "")
+        if self._src == "radio":
+            if np.get("now"):
+                return split_track(np["now"])
+            return None, np.get("station") or np.get("title") or None
+        return None, None
+
+    @property
+    def media_content_type(self) -> str | None:
+        return MediaType.MUSIC if self._src in ("player", "radio") and self._np.get("state") not in (None, "stopped") else None
+
     @property
     def media_title(self) -> str | None:
-        st = self.coordinator.data.get("status") or {}
-        sid = self._z.get("source")
-        if sid == "player":
-            return (st.get("player") or {}).get("title") or None
-        if sid == "radio":
-            return (st.get("radio") or {}).get("title") or None
+        return self._track()[1]
+
+    @property
+    def media_artist(self) -> str | None:
+        return self._track()[0]
+
+    @property
+    def media_channel(self) -> str | None:
+        """the station, or the music player's channel"""
+        if self._src == "radio":
+            return self._np.get("station") or None
+        if self._src == "player":
+            return self._np.get("channel") or None
         return None
+
+    @property
+    def media_image_url(self) -> str | None:
+        """the track's cover (Jamendo) or the station's logo; Home Assistant fetches it and serves it on"""
+        return self._np.get("image") or None
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -137,6 +229,73 @@ class ZonePlayer(HostEntity, MediaPlayerEntity):
         if not sid:
             raise HomeAssistantError(f"{self.name} can't play {source}")
         await self._put(source=sid)
+
+
+    # ---- transport: the shared music player or radio
+    async def _do(self, coro) -> None:
+        try:
+            await coro
+        except HostError as e:
+            raise HomeAssistantError(str(e)) from e
+        self.coordinator.refresh_slow()
+        await self.coordinator.async_request_refresh()
+
+    def _transport(self, cmd: str):
+        c = self.coordinator.client
+        if self._src == "player":
+            return c.player(cmd)
+        if self._src == "radio" and cmd in ("play", "pause"):
+            return c.radio_cmd(cmd)
+        raise HomeAssistantError(f"{self.name} isn't playing the music player or the radio")
+
+    async def async_media_play(self) -> None:
+        await self._do(self._transport("play"))
+
+    async def async_media_pause(self) -> None:
+        await self._do(self._transport("pause"))
+
+    async def async_media_next_track(self) -> None:
+        await self._do(self._transport("next"))
+
+    async def async_media_previous_track(self) -> None:
+        await self._do(self._transport("prev"))
+
+    # ---- stations and channels: "radio/<station id>", "channel/<channel id>"
+    async def async_play_media(self, media_type: str, media_id: str, **kwargs) -> None:
+        kind, _, item = media_id.partition("/")
+        c = self.coordinator.client
+        if kind == "radio" and item:
+            return await self._do(c.play_station(item, zone=self._zone))     # the processor switches the zone too
+        if kind == "channel" and item:
+            if "player" not in self._sources():
+                raise HomeAssistantError(f"{self.name} can't play the music player")
+            await self._do(c.play_channel(item))
+            if self._src != "player":
+                await self._put(source="player")
+            return
+        raise HomeAssistantError(f"can't play {media_id}")
+
+    async def async_browse_media(self, media_content_type: str | None = None, media_content_id: str | None = None) -> BrowseMedia:
+        data, allowed = self.coordinator.data, self._sources()
+        stations = [BrowseMedia(media_class=MediaClass.CHANNEL, media_content_id=f"radio/{f['id']}", media_content_type=MediaType.CHANNEL,
+                                title=f.get("name") or f["id"], can_play=True, can_expand=False, thumbnail=f.get("logo") or None)
+                    for f in favourites(data)] if "radio" in allowed else []
+        music = [BrowseMedia(media_class=MediaClass.PLAYLIST, media_content_id=f"channel/{cid}", media_content_type=MediaType.PLAYLIST,
+                             title=name, can_play=True, can_expand=False) for cid, name in channels(data)] if "player" in allowed else []
+        folder = lambda cid, title, kids: BrowseMedia(media_class=MediaClass.DIRECTORY, media_content_id=cid, media_content_type="",
+                                                       title=title, can_play=False, can_expand=True, children=kids,
+                                                       children_media_class=kids[0].media_class if kids else None)
+        if media_content_id == "radio":
+            return folder("radio", allowed.get("radio", "Radio"), stations)
+        if media_content_id == "channel":
+            return folder("channel", allowed.get("player", "Music player"), music)
+        if media_content_id:
+            raise BrowseError(f"nothing at {media_content_id}")
+        top = [folder("radio", allowed.get("radio", "Radio"), [])] if stations else []
+        top += [folder("channel", allowed.get("player", "Music player"), [])] if music else []
+        for t in top:
+            t.children = None
+        return folder("", self.name, top)
 
 
 class GroupPlayer(HostEntity, MediaPlayerEntity):

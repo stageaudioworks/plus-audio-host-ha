@@ -43,6 +43,12 @@
     "select": {
       "scene": {
         "name": "Scene"
+      },
+      "radio_station": {
+        "name": "Radio station"
+      },
+      "music_channel": {
+        "name": "Music player channel"
       }
     },
     "sensor": {
