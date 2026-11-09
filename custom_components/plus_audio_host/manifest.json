@@ -1,6 +1,9 @@
 {
   "domain": "plus_audio_host",
   "name": "Plus Audio Host",
+  "categories": [
+    "media_entertainment.speakers_audio"
+  ],
   "codeowners": [
     "@stageaudioworks"
   ],

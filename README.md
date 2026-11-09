@@ -42,7 +42,21 @@ venue staff (zone volume limits, allowed sources). **Installer** works too but i
 
 ## 2. Install the integration
 
-### With HACS (recommended)
+### From the Marketplace (Home Assistant 2026.11 and newer)
+
+[![Open your Home Assistant and add this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=stageaudioworks&repository=plus-audio-host-ha&category=integration)
+
+1. Press the button above. It opens your Home Assistant at the Marketplace with this repository filled in.
+   (Or in the **Marketplace**, choose **Add from link** and paste `https://github.com/stageaudioworks/plus-audio-host-ha`,
+   type **Integration**.)
+2. The first time, the Marketplace asks you to connect a GitHub account (a code you enter on github.com; it only reads
+   public information). It needs this for repositories that aren't in its catalog yet.
+3. Accept the community-content notice, open **Plus Audio Host** and press **Install**.
+4. Restart Home Assistant if it asks you to.
+
+Updates appear under **Settings → Updates** when a new version is released.
+
+### With HACS (Home Assistant 2026.10 and older)
 
 1. In Home Assistant, open **HACS**.
 2. Open the menu (⋮) at the top right → **Custom repositories**.
@@ -50,7 +64,7 @@ venue staff (zone volume limits, allowed sources). **Installer** works too but i
 4. Search HACS for **Plus Audio Host**, open it and press **Download**.
 5. Restart Home Assistant (**Settings → System → Restart**).
 
-HACS will offer updates when a new version is released.
+When you update Home Assistant to 2026.11, HACS becomes the Marketplace and keeps this integration and its updates.
 
 ### By hand
 
