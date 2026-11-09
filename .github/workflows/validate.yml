@@ -14,10 +14,12 @@ jobs:
   hassfest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: home-assistant/actions/hassfest@master
 
   hacs:
+    # HACS only validates public repositories; this runs once the repository is made public
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     steps:
       - uses: hacs/action@main
@@ -33,16 +35,16 @@ jobs:
     env:
       HAS_TOKEN: ${{ secrets.BMP_REPO_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Processor software
         if: env.HAS_TOKEN == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: stageaudioworks/plus-audio-bmp
           token: ${{ secrets.BMP_REPO_TOKEN }}
           path: bmp
           sparse-checkout: control
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: env.HAS_TOKEN == 'true'
         with:
           python-version: "3.13"
