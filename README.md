@@ -159,16 +159,23 @@ Zones are ordinary media players, so they work on dashboards, with voice assista
 
 ## Live meters
 
-The integration brings its own dashboard card, **Plus Audio meters**: each zone's left and right level, updated up to
-20 times a second, with peak hold. Edit a dashboard → **Add card** → search for "Plus Audio", or in YAML:
+The integration brings its own dashboard card, **Plus Audio meters**: a meter bridge like a console's or Q-SYS's,
+with a vertical segmented meter per zone (left and right), a dB scale, a peak-hold marker, a clip light that stays lit
+for two seconds, and the level in dB under each zone. Edit a dashboard → **Add card** → search for "Plus Audio", or
+in YAML:
 
 ```yaml
 type: custom:plus-audio-meters-card
 title: Levels          # optional
 zones: [A, B, Bar]     # optional: letters or numbers; default every zone in use
-rate: 15               # optional: updates a second, 1 to 20 (default 15)
+ballistics: rms        # rms (default): averaged over about 300 ms, like a VU or a Q-SYS RMS meter
+                       # ppm: rises at once and falls slowly, like a console's peak meter
+                       # fast: the raw levels
+peak_hold: 2           # optional: seconds the peak marker holds (0: none)
+height: 200            # optional: meter height in pixels
+show_values: true      # optional: the level in dB under each zone
+rate: 15               # optional: updates a second from the processor, 1 to 20
 entry_id: …            # optional: one processor, when you have more than one (default all)
-show_rms: true         # optional: the average level inside the bar, when the processor sends it
 ```
 
 Nothing to add under dashboard resources: the integration serves the card and loads it. The levels go from the
