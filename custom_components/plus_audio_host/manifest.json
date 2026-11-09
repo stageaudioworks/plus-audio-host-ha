@@ -8,10 +8,15 @@
     "@stageaudioworks"
   ],
   "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "websocket_api"
+  ],
   "documentation": "https://github.com/stageaudioworks/plus-audio-host-ha",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/stageaudioworks/plus-audio-host-ha/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

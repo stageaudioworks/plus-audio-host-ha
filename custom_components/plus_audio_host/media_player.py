@@ -85,6 +85,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add: AddEnt
 
 
 class ZonePlayer(HostEntity, MediaPlayerEntity):
+    """the zone's live level isn't an attribute (it changed every update and filled the recorder): the "Plus Audio
+    meters" dashboard card shows it live instead (meters.py)"""
     _attr_volume_step = 0.05
 
     def __init__(self, coord: HostCoordinator, zone: int) -> None:
@@ -204,7 +206,7 @@ class ZonePlayer(HostEntity, MediaPlayerEntity):
         z = self._z
         live = next((x for x in (self.coordinator.data.get("status") or {}).get("zones", []) if x.get("zone") == self._zone), {})
         a = {"volume_db": z.get("volume_db"), "volume_limit_db": z.get("max_volume_db"), "zone": chr(64 + self._zone),
-             "level_db": max(live.get("peak_db") or [-120]), "playing": live.get("active")}
+             "playing": live.get("active")}
         if z.get("groups"):                       # in a zone group (#81): what it actually plays at
             a.update(plays_at_db=z.get("effective_db"), muted_by_group=bool(z.get("effective_mute")) and not z.get("mute"))
         return a

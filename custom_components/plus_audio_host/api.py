@@ -27,6 +27,19 @@ class HostClient:
         self._token = token
         self._ssl = None if verify_ssl else False
 
+    # for the live meters' websocket (meters.py)
+    @property
+    def session(self) -> aiohttp.ClientSession:
+        return self._s
+
+    @property
+    def token(self) -> str:
+        return self._token
+
+    @property
+    def ssl(self):
+        return self._ssl
+
     async def _req(self, method: str, path: str, body: Any = None) -> Any:
         headers = {"X-BMP-Token": self._token}
         try:
@@ -53,6 +66,10 @@ class HostClient:
 
     async def status(self) -> dict:
         return await self._req("GET", "/api/status")
+
+    async def meters(self) -> dict:
+        """the zones' live levels only (newer processors; older ones answer 404 and the meters use status())"""
+        return await self._req("GET", "/api/meters")
 
     async def scenes(self) -> dict:
         return await self._req("GET", "/api/scenes")

@@ -26,6 +26,22 @@ jobs:
         with:
           category: integration
 
+  meters:
+    # the live meters, against a fake processor: needs nothing private, so it always runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: |
+          pip install pytest-homeassistant-custom-component
+          pytest tests_meters -v
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: node --check custom_components/plus_audio_host/frontend/plus-audio-meters-card.js
+
   tests:
     # Home Assistant against the processor's real control software. Needs read access to the private processor
     # repository: a fine-grained token with Contents: read on stageaudioworks/plus-audio-bmp, as the secret BMP_REPO_TOKEN.
