@@ -111,6 +111,11 @@ async def test_music_and_radio(hass: HomeAssistant, box):
     import subprocess
     import tunein_mock
     url, token, call = box
+    for _ in range(150):                          # an announcement from the test before holds the radio until it ends
+        ann = call("GET", "/api/messages")[1]["status"]
+        if not ann["now"] and not ann["queue"]:
+            break
+        await asyncio.sleep(0.2)
     for sid in ("s1001", "s1002"):                # the installer's favourites (names and logos come from TuneIn)
         assert call("POST", "/api/radio/favourites", {"id": sid})[0] == 200
     favs = {f["id"]: f for f in call("GET", "/api/radio")[1]["favourites"]}
