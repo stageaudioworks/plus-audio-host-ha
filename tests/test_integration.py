@@ -252,6 +252,7 @@ async def test_amplifiers(hass: HomeAssistant, box):
         assert float(t.state) == pytest.approx(41.5)
         pb = next(s for s in hass.states.async_all("binary_sensor") if s.attributes["friendly_name"].endswith("Bar amp problem"))
         assert pb.state == "off"
+        assert isinstance(pb.attributes.get("load_state"), list), pb.attributes   # per output: measured / setting / ...
         async def standby_is(want):
             for _ in range(40):
                 if call("GET", "/api/amps")[1]["amps"][0]["status"]["standby"] is want:

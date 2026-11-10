@@ -18,7 +18,7 @@ For each processor, one device in Home Assistant with:
 | **Radio station** (select) | The internet radio's station, from the processor's favourites. |
 | **Music player channel** (select) | The music player's channel: the processor's own music, or a Jamendo channel when Jamendo is set up on the processor. |
 | **Audio dropouts**, **Network clock**, **Network inputs with problems** | Diagnostics: engine dropouts, the PTP clock state and AES67 inputs that aren't arriving. |
-| **Per amplifier** (Plus Audio AC403 / AC401) | A power switch (on / standby), its temperature, and a problem sensor (not answering, protection, too hot, a short or missing speaker, a load far from normal; the details are in its `problems` attribute). |
+| **Per amplifier** (Plus Audio AC403 / AC401) | A power switch (on / standby), its temperature, and a problem sensor (not answering, protection, too hot, a short or missing speaker, a measured load far from normal; the details are in its `problems` attribute, and `load_state` says per output whether the amplifier measures its load or only reports its load setting). |
 
 And a dashboard card for live levels (below), plus two actions:
 

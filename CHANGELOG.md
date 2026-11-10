@@ -2,6 +2,10 @@
 
 ## 0.3.1 (unreleased)
 
+- Amplifier problem sensor: a new `load_state` attribute says per output whether the load is measured or only the
+  amplifier's load setting (the AC403 on firmware 1.4.13 reports its 16 Ω setting). `loads_ohm` now holds measured
+  loads only, with processor software from 10 Nov 2026.
+
 - The meters card is now a meter bridge, like a console's or Q-SYS's: vertical segmented meters with a dB scale,
   peak hold, a clip light and a steady dB readout. RMS ballistics by default (about 300 ms); `ballistics: ppm` or
   `fast` for quicker meters. New options: `ballistics`, `peak_hold`, `height`, `show_values`.

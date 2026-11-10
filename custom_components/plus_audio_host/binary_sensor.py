@@ -1,5 +1,8 @@
 """One problem sensor per amplifier: on while it isn't answering, is in protection, is hot, or an output in use has a
-short, no speaker, or a load far from its saved normal. The texts are in the `problems` attribute."""
+short, no speaker, or a measured load far from its saved normal. The texts are in the `problems` attribute.
+`loads_ohm` holds measured loads only (null where the amplifier doesn't measure, or hasn't yet: some firmware only reports
+its load setting); `load_state` says which, per output: measured, setting, not_measured, open (processor software from
+10 Nov 2026; older software has no `load_state`, and its `loads_ohm` may be the amplifier's setting)."""
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
@@ -34,4 +37,4 @@ class AmpProblem(AmpEntity, BinarySensorEntity):
     def extra_state_attributes(self) -> dict:
         s = self._s
         return {"problems": self._a.get("problems") or [], "online": s.get("online"), "protection": s.get("protect"),
-                "loads_ohm": s.get("loads_ohm"), "faults": s.get("faults")}
+                "loads_ohm": s.get("loads_ohm"), "load_state": s.get("load_state"), "faults": s.get("faults")}
